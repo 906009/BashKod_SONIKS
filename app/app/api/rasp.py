@@ -112,7 +112,6 @@ async def get_satellite_rasp(stl_id):
                         tle=tle
                     )
                     output.append(obj)
-                output.reverse()
                 return output
     except:
         return ["Нет данных."]
