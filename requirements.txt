@@ -1,0 +1,8 @@
+fastapi
+starlette
+uvicorn
+requests
+beautifulsoup4
+skyfield
+aiogram
+pydantic

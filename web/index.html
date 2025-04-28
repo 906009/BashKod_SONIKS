@@ -1,0 +1,1214 @@
+<!DOCTYPE HTML>
+<html lang="ru">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/satellite.js/dist/satellite.min.js"></script>
+  <style>
+    html, body {
+      height: 100%;
+      padding: 0;
+      margin: 0;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Навигационная панель */
+    .navbar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      background-color: white;
+      color: #333;
+      padding: 0 20px 0 0;
+      height: 60px;
+      font-family: sans-serif;
+      position: relative;
+      z-index: 1000;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .navbar-left {
+      display: flex;
+      align-items: center;
+      margin-right: auto;
+    }
+
+    .navbar-left img {
+      margin-right: 10px;
+    }
+
+    .navbar a, .navbar .dropdown {
+      color: #333;
+      text-decoration: none;
+      margin: 0 10px;
+      position: relative;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background-color: white;
+      min-width: 160px;
+      z-index: 1001;
+      border: 1px solid #ddd;
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      overflow: hidden;
+      box-shadow: 0px 4px 6px rgba(0,0,0,0.1);
+      padding: 10px 0;
+    }
+
+    .dropdown-content a {
+      color: #333;
+      padding: 10px;
+      text-decoration: none;
+      display: block;
+    }
+
+    .dropdown-content a:hover {
+      background-color: #f0f0f0;
+    }
+
+    .dropdown:hover .dropdown-content {
+      display: block;
+    }
+
+    .dropdown::after {
+      content: '\f107';
+      font-family: "Font Awesome 5 Free";
+      font-weight: 900;
+      margin-left: 5px;
+    }
+
+    /* Основное содержимое */
+    #map {
+      flex: 1;
+      width: 100%;
+      z-index: 1;
+    }
+    
+    .navbar-right {
+      display: flex;
+      align-items: center;
+      margin-left: 10px;
+    }
+
+    .profile-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      overflow: hidden;
+      margin-right: 10px;
+    }
+
+    .question-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      overflow: hidden;
+      margin-left: 20px;
+    }
+
+    .profile-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .question-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    /* Стили для всплывающего меню станции */
+    .station-popup {
+      padding: 10px;
+      min-width: 200px;
+    }
+    
+    .station-popup h3 {
+      margin-top: 0;
+      color: #FB632A;
+    }
+    
+    .station-popup p {
+      margin: 5px 0;
+    }
+    
+    .station-popup .status {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 0.9em;
+    }
+    
+    .station-popup .status-online {
+      background-color: #4CAF50;
+      color: white;
+    }
+    
+    .station-popup .status-offline {
+      background-color: #F44336;
+      color: white;
+    }
+    
+    .station-popup-actions {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .station-popup-actions a {
+      display: block;
+      padding: 5px;
+      margin: 2px 0;
+      background-color: #f5f5f5;
+      color: #333;
+      text-decoration: none;
+      text-align: center;
+      border-radius: 4px;
+    }
+    
+    .station-popup-actions a:hover {
+      background-color: #e0e0e0;
+    }
+    
+    .station-popup .status-reception-active {
+      background-color: #4CAF50;
+      color: white;
+    }
+
+    .station-popup .status-reception-waiting {
+      background-color: #FFC107;
+      color: black;
+    }
+
+    .station-popup .status-reception-error {
+      background-color: #F44336;
+      color: white;
+    }
+
+    /* Стили для боковой панели */
+    .side-panel {
+      position: fixed;
+      top: 60px;
+      left: -400px;
+      width: 380px;
+      height: calc(100% - 60px);
+      background-color: white;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+      z-index: 1000;
+      transition: left 0.3s ease;
+      padding: 10px;
+    }
+
+    .side-panel-header {
+      background-color: white;
+      padding: 10px 30px 10px 10px;
+      margin: -10px -10px 0 -10px;
+      border-bottom: 1px solid #eee;
+      z-index: 2;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .side-panel-content {
+      padding-top: 10px;
+      position: relative;
+      z-index: 1;
+      height: calc(100% - 50px);
+      overflow-y: auto;
+    }
+
+    .side-panel.open {
+      left: 0;
+    }
+
+    .close-panel {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      cursor: pointer;
+      font-size: 20px;
+      color: #777;
+      background: none;
+      border: none;
+      z-index: 3;
+    }
+    
+    .side-panel h3 {
+      margin: 0;
+      padding: 0;
+      color: #FB632A;
+      font-size: 1.2em;
+    }
+
+    .pass-item, .history-item {
+      margin-bottom: 15px;
+      padding: 10px;
+      border: 1px solid #eee;
+      border-radius: 4px;
+    }
+
+    .pass-item h4, .history-item h4 {
+      margin-top: 0;
+      color: #333;
+    }
+
+    .pass-item p, .history-item p {
+      margin: 5px 0;
+      font-size: 0.9em;
+    }
+
+    .history-item .status-good {
+      color: #4CAF50;
+      font-weight: bold;
+    }
+
+    .history-item .status-bad {
+      color: #F44336;
+      font-weight: bold;
+    }
+
+    .history-links a {
+      display: inline-block;
+      margin-right: 10px;
+      color: #2196F3;
+      text-decoration: none;
+    }
+
+    /* Заголовок */
+    .welcome-header {
+      width: 100%;
+      text-align: center;
+      font-size: 24px;
+      font-family: sans-serif;
+      font-weight: 800;
+      word-wrap: break-word;
+      text-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+      color: #353535;
+      padding: 10px 0;
+    }
+    
+    .tle-data {
+      background-color: #f5f5f5;
+      padding: 8px;
+      border-radius: 4px;
+      margin-top: 8px;
+      font-family: monospace;
+      font-size: 0.9em;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    .tle-data p {
+      margin: 0;
+      line-height: 1.3;
+    }
+
+    .loading, .no-data, .error {
+      padding: 20px;
+      text-align: center;
+      color: #666;
+    }
+
+    .error {
+      color: #d32f2f;
+    }
+
+    .error button {
+      margin-top: 10px;
+      padding: 8px 16px;
+      background-color: #FB632A;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .error button:hover {
+      background-color: #e05520;
+    }
+    
+    .satellite-popup {
+      padding: 10px;
+      min-width: 200px;
+    }
+    
+    .satellite-popup h3 {
+      margin-top: 0;
+      color: #2196F3;
+    }
+    
+    .satellite-popup-actions {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .satellite-popup-actions a {
+      display: block;
+      padding: 5px;
+      margin: 2px 0;
+      background-color: #f5f5f5;
+      color: #333;
+      text-decoration: none;
+      text-align: center;
+      border-radius: 4px;
+    }
+    
+    .satellite-popup-actions a:hover {
+      background-color: #e0e0e0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="navbar">
+    <div class="navbar-left">
+      <img src="images/logo.png" alt="Логотип">
+      <a href="#">О проекте</a>
+      <a href="#">Станции</a>
+      <div class="dropdown">
+        Наблюдения
+        <div class="dropdown-content">
+          <a href="#">Просмотр наблюдений</a>
+          <a href="#">Запланировать наблюдения</a>
+          <a href="#">Глобус</a>
+		  <a href="#">СОНИКС монитор</a>
+        </div>
+      </div>
+      <div class="dropdown">
+        Спутники
+        <div class="dropdown-content">
+          <a href="#">Все спутники</a>
+          <a href="#">Запуски</a>
+          <a href="#">Сходящие с орбиты</a>
+        </div>
+      </div>
+      <div class="dropdown">
+        Передатчики
+        <div class="dropdown-content">
+          <a href="#">Просмотр передатчиков</a>
+          <a href="#">Спектр</a>
+        </div>
+      </div>
+      <div class="dropdown">
+        Сеть
+        <div class="dropdown-content">
+          <a href="#">Статистика</a>
+          <a href="#">Дашборды</a>
+          <a href="#">Галерея</a>
+        </div>
+      </div>
+      <div class="dropdown">
+        Образование
+        <div class="dropdown-content">
+          <a href="#">Полезные ссылки</a>
+          <a href="#">Квест</a>
+          <a href="#">Хакатон</a>
+        </div>
+      </div>
+    </div>
+    <div class="navbar-right">
+      <div class="question-icon">
+        <img src="images/question-mark.png" alt="Вопрос">
+      </div>
+      <a href="#">Войти</a>
+      <div class="profile-icon">
+        <img src="images/icon_profile.png" alt="Профиль">
+      </div>
+    </div>
+  </div>
+  
+  <div class="welcome-header">
+    Добро пожаловать в <span style="color: #FB632A;">центр мониторинга работы</span> сети СОНИКС
+  </div>
+
+  <!-- Боковая панель -->
+  <div class="side-panel" id="sidePanel">
+    <div class="side-panel-header">
+      <h3 id="panelTitle">Заголовок панели</h3>
+      <button class="close-panel" onclick="closePanel()">&times;</button>
+    </div>
+    <div class="side-panel-content" id="panelContent"></div>
+  </div>
+
+  <div id="map"></div>
+
+  <script>
+    // Инициализация карты
+    //var map = L.map('map').setView([54.7660, 56.0667], 4);
+	var map = L.map('map').setView([20, 0], 2);
+    var currentStationId = null;
+    var satelliteMarkers = {}; // Объект для хранения маркеров спутников
+    var satelliteUpdateInterval; // Интервал для обновления позиций спутников
+    var orbitLayer = null; // Слой для отображения орбиты
+
+    // Добавляем слой OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+    }).addTo(map);
+
+    // Добавляем шкалу масштаба
+    L.control.scale().addTo(map);
+
+    // Вспомогательные функции для загрузки данных
+    async function loadForecastData(st_id) {
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/rasp/?st_id=${st_id}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+      } catch (error) {
+        console.error('Ошибка загрузки прогноза:', error);
+        throw error;
+      }
+    }
+
+    async function loadSatelliteForecastData(stl_id) {
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/rasp/?stl_id=${stl_id}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+      } catch (error) {
+        console.error('Ошибка загрузки прогноза для спутника:', error);
+        throw error;
+      }
+    }
+
+    async function loadHistoryData(st_id) {
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/history/?st_id=${st_id}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+      } catch (error) {
+        console.error('Ошибка загрузки истории:', error);
+        throw error;
+      }
+    }
+
+    // Функция для получения статуса приёма станции
+    async function getStationStatus(st_id) {
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/online/?st_id=${st_id}`);
+        if (!response.ok) {
+          throw new Error(`Ошибка сервера: ${response.status}`);
+        }
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        console.error('Ошибка получения статуса:', error);
+        return ["Ошибка соединения"];
+      }
+    }
+    
+    // Функция для получения данных о спутниках
+    async function getSatellitePositions() {
+      try {
+        const response = await fetch('http://127.0.0.1:8000/online/');
+        if (!response.ok) {
+          throw new Error(`Ошибка сервера: ${response.status}`);
+        }
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        console.error('Ошибка получения позиций спутников:', error);
+        return null;
+      }
+    }
+
+    // Функция для загрузки TLE спутника
+    async function loadSatelliteTLE(noradId) {
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/rasp/?stl_id=${noradId}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        // Берем первый доступный TLE
+        if (data.length > 0 && data[0].tle) {
+          return data[0].tle;
+        }
+        return null;
+      } catch (error) {
+        console.error('Ошибка загрузки TLE:', error);
+        return null;
+      }
+    }
+
+    // Функция для расчета точек орбиты спутника
+    function calculateOrbitPoints(tle, pointsCount = 100) {
+      const tleLines = tle.split('\n');
+      if (tleLines.length < 2) return [];
+      
+      const satrec = satellite.twoline2satrec(tleLines[0].trim(), tleLines[1].trim());
+      const points = [];
+      const period = 2 * Math.PI / satrec.no; // период в минутах
+      
+      // Рассчитываем точки на один полный период
+      for (let i = 0; i < pointsCount; i++) {
+        const time = new Date();
+        const step = period / pointsCount * i;
+        time.setMinutes(time.getMinutes() + step);
+        
+        const positionAndVelocity = satellite.propagate(satrec, time);
+        const positionEci = positionAndVelocity.position;
+        
+        if (positionEci) {
+          const gmst = satellite.gstime(time);
+          const positionGd = satellite.eciToGeodetic(positionEci, gmst);
+          
+          const longitude = satellite.degreesLong(positionGd.longitude);
+          const latitude = satellite.degreesLat(positionGd.latitude);
+          
+          points.push([latitude, longitude]);
+        }
+      }
+      
+      return points;
+    }
+
+    // Функция для отображения орбиты спутника
+    async function showSatelliteOrbit(noradId) {
+      // Удаляем предыдущую орбиту, если есть
+      if (orbitLayer) {
+        map.removeLayer(orbitLayer);
+        orbitLayer = null;
+      }
+      
+      // Загружаем TLE
+      const tle = await loadSatelliteTLE(noradId);
+      if (!tle) {
+        console.error('Не удалось получить TLE для спутника');
+        return;
+      }
+      
+      // Рассчитываем точки орбиты
+      const orbitPoints = calculateOrbitPoints(tle);
+      if (orbitPoints.length === 0) {
+        console.error('Не удалось рассчитать орбиту');
+        return;
+      }
+      
+      // Создаем слой с линией орбиты
+      orbitLayer = L.polyline(orbitPoints, {
+        color: '#2196F3',
+        weight: 2,
+        dashArray: '5, 5',
+        opacity: 0.7
+      }).addTo(map);
+      
+      // Подгоняем карту чтобы показать всю орбиту
+      //map.fitBounds(orbitLayer.getBounds());
+    }
+
+    // Функция для форматирования TLE
+    function formatTLE(tle) {
+      if (!tle) return '';
+      return tle.replace(/\s+/g, ' ').trim();
+    }
+
+    // Функция для создания содержимого всплывающего окна станции
+    async function createStationPopup(station) {
+      const statusClass = station.st_status === 'Online' ? 'status-online' : 'status-offline';
+      
+      // Получаем статус приёма
+      const receptionStatus = await getStationStatus(station.st_id);
+      let statusText = receptionStatus[0];
+      let satelliteInfo = '';
+      
+      if (receptionStatus.length > 1) {
+        satelliteInfo = `<p>Спутник: ${receptionStatus[1]}</p>`;
+      }
+      
+      // Добавляем класс для цвета статуса
+      let statusReceptionClass = '';
+      if (statusText === 'Приём') {
+        statusReceptionClass = 'status-reception-active';
+      } else if (statusText === 'Ожидание') {
+        statusReceptionClass = 'status-reception-waiting';
+      } else {
+        statusReceptionClass = 'status-reception-error';
+      }
+      
+      return `
+        <div class="station-popup">
+          <h3>${station.st_name}</h3>
+          <p>ID: ${station.st_id}</p>
+          <p>Координаты: ${station.lat.toFixed(4)}, ${station.lng.toFixed(4)}</p>
+          <p>Статус: <span class="status ${statusClass}">${station.st_status}</span></p>
+          <p>Приём: <span class="status ${statusReceptionClass}">${statusText}</span></p>
+          ${satelliteInfo}
+          <p>Радиус покрытия: ${station.radius.toFixed(2)} км</p>
+          <div class="station-popup-actions">
+            <a href="#" onclick="showForecast(${station.st_id})">Прогноз</a>
+            <a href="#" onclick="showHistory(${station.st_id})">История</a>
+            <a href="#" onclick="showStatistics(${station.st_id})">Статистика</a>
+          </div>
+        </div>
+      `;
+    }
+    
+    // Функция для создания содержимого всплывающего окна спутника
+    function createSatellitePopup(satellite) {
+      return `
+        <div class="satellite-popup">
+          <h3>${satellite.name || 'Неизвестный спутник'}</h3>
+          <p>NORAD ID: ${satellite.norad_id || 'Н/Д'}</p>
+          <p>Координаты: ${satellite.lat.toFixed(4)}, ${satellite.lng.toFixed(4)}</p>
+          <div class="satellite-popup-actions">
+            <a href="#" onclick="showSatelliteInfo('${satellite.norad_id}')">Статистика</a>
+            <a href="#" onclick="showSatellitePasses('${satellite.norad_id}')">Прогноз</a>
+            <a href="#" onclick="showSatelliteHistory('${satellite.norad_id}')">История </a>
+          </div>
+        </div>
+      `;
+    }
+
+    // Функция для добавления станций на карту
+    function addStationsToMap(stations) {
+      stations.forEach(station => {
+        // Создаем круг покрытия (изначально невидимый)
+        const coverage = L.circle([station.lat, station.lng], {
+          radius: station.radius * 1000,
+          fillColor: station.st_status === 'Online' ? 'green' : 'red',
+          color: station.st_status === 'Online' ? 'green' : 'red',
+          fillOpacity: 0,
+          opacity: 0,
+          weight: 1
+        }).addTo(map);
+        
+        // Создаем маркер
+        const marker = L.marker([station.lat, station.lng], {
+          icon: L.divIcon({
+            className: `station-marker ${station.st_status === 'Online' ? 'online-marker' : 'offline-marker'}`,
+            html: `<div style="background-color: ${station.st_status === 'Online' ? 'green' : 'red'}; 
+                   width: 15px; 
+                   height: 15px; 
+                   border-radius: 50%; 
+                   border: 2px solid white;
+                   box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>`,
+            iconSize: [15, 15]
+          })
+        }).addTo(map);
+        
+        marker.coverage = coverage;
+        
+        // Асинхронная привязка popup
+        marker.bindPopup('<div class="station-popup">Загрузка данных...</div>', {
+          maxWidth: 300,
+          minWidth: 250
+        });
+        
+        marker.on('popupopen', async function() {
+          const popupContent = await createStationPopup(station);
+          marker.setPopupContent(popupContent);
+          currentStationId = station.st_id;
+        });
+        
+        // Обработчики событий
+        function showCoverage() {
+          coverage.setStyle({
+            fillOpacity: 0.1,
+            opacity: 1
+          });
+        }
+        
+        function hideCoverage() {
+          if (!marker.getPopup().isOpen()) {
+            coverage.setStyle({
+              fillOpacity: 0,
+              opacity: 0
+            });
+          }
+        }
+        
+        marker.on({
+          mouseover: showCoverage,
+          mouseout: hideCoverage,
+          click: showCoverage
+        });
+        
+        marker.on('popupclose', hideCoverage);
+      });
+    }
+    
+    // Функция для обновления позиций спутников на карте
+    async function updateSatellitePositions() {
+      const data = await getSatellitePositions();
+      if (!data || !data.features) return;
+      
+      // Удаляем старые маркеры спутников
+      Object.values(satelliteMarkers).forEach(marker => {
+        map.removeLayer(marker);
+      });
+      satelliteMarkers = {};
+      
+      // Создаем иконку для спутников
+      const satelliteIcon = L.icon({
+        iconUrl: 'images/satellite.png',
+        iconSize: [20, 20], // размер изображения
+        iconAnchor: [10, 10], // точка привязки (центр изображения)
+        popupAnchor: [0, -10] // смещение popup относительно иконки
+      });
+      
+      // Добавляем новые маркеры спутников
+      data.features.forEach(feature => {
+        const noradId = feature.properties.norad_id;
+        const name = feature.properties.name;
+        const coords = feature.geometry.coordinates;
+        
+        // Проверяем, что координаты существуют
+        if (coords && coords.length === 2) {
+          const lat = parseFloat(coords[0]);
+          const lng = parseFloat(coords[1]);
+          
+          if (!isNaN(lat) && !isNaN(lng)) {
+            const marker = L.marker([lat, lng], {
+              icon: satelliteIcon
+            }).addTo(map);
+            
+            // Создаем popup для спутника
+            marker.bindPopup(createSatellitePopup({
+              norad_id: noradId,
+              name: name,
+              lat: lat,
+              lng: lng
+            }), {
+              maxWidth: 300,
+              minWidth: 250
+            });
+            
+            // Обработчик открытия popup - показываем орбиту
+            marker.on('popupopen', async function() {
+              await showSatelliteOrbit(noradId);
+            });
+            
+            // Обработчик закрытия popup - убираем орбиту
+            marker.on('popupclose', function() {
+              if (orbitLayer) {
+                map.removeLayer(orbitLayer);
+                orbitLayer = null;
+              }
+            });
+            
+            // Сохраняем маркер для последующего обновления
+            satelliteMarkers[noradId] = marker;
+          }
+        }
+      });
+    }
+
+    // Функция для загрузки данных о станциях
+    async function loadStations() {
+      try {
+        // Показываем индикатор загрузки
+        const loadingIndicator = L.marker(map.getCenter(), {
+          icon: L.divIcon({
+            className: 'loading-indicator',
+            html: '<div class="spinner"></div><div>Загрузка данных...</div>',
+            iconSize: [100, 40]
+          })
+        }).addTo(map);
+        
+        // Пробуем загрузить данные с сервера
+        let stations = [];
+        try {
+          const response = await fetch("http://127.0.0.1:8000/stations");
+          
+          if (!response.ok) {
+            throw new Error(`Ошибка сервера: ${response.status}`);
+          }
+          
+          stations = await response.json();
+          
+          // Проверяем структуру данных
+          if (!Array.isArray(stations)) {
+            throw new Error('Некорректный формат данных');
+          }
+        } catch (error) {
+          console.error('Ошибка загрузки с сервера:', error);
+          // Используем тестовые данные если сервер недоступен
+          stations = [];
+        }
+        
+        // Убираем индикатор загрузки
+        map.removeLayer(loadingIndicator);
+        
+        // Добавляем станции на карту
+        addStationsToMap(stations);
+        
+        // Загружаем и обновляем позиции спутников
+        await updateSatellitePositions();
+        // Устанавливаем интервал для обновления позиций спутников каждые 30 секунд
+        satelliteUpdateInterval = setInterval(updateSatellitePositions, 15000);
+        
+        // Автоматически подгоняем карту чтобы показать все станции
+        if (stations.length > 0) {
+          const group = new L.featureGroup(stations.map(s => L.marker([s.lat, s.lng])));
+          //map.fitBounds(group.getBounds().pad(0.5));
+        }
+      } catch (error) {
+        console.error('Критическая ошибка:', error);
+        alert('Произошла ошибка при загрузке карты. Пожалуйста, обновите страницу.');
+      }
+    }
+
+    // Функции для работы с боковой панелью
+    function openPanel() {
+      document.getElementById('sidePanel').classList.add('open');
+    }
+
+    function closePanel() {
+      document.getElementById('sidePanel').classList.remove('open');
+    }
+
+    // Функция для отображения прогноза
+    async function showForecast(st_id) {
+      currentStationId = st_id;
+      const title = document.getElementById('panelTitle');
+      const content = document.getElementById('panelContent');
+      
+      title.textContent = 'Прогноз пролётов';
+      content.innerHTML = '<div class="loading">Загрузка данных...</div>';
+      openPanel();
+      
+      try {
+        const data = await loadForecastData(st_id);
+        
+        if (!data || data.length === 0) {
+          content.innerHTML = '<div class="no-data">Нет данных о предстоящих пролётах</div>';
+          return;
+        }
+        
+        let html = '';
+        data.forEach(pass => {
+          html += `
+            <div class="pass-item">
+              <h4>${pass.stl_name || 'Неизвестный спутник'}</h4>
+              <p><strong>NORAD ID:</strong> ${pass.norad_id || 'Н/Д'}</p>
+              <p><strong>Начало:</strong> ${pass.start ? new Date(pass.start).toLocaleString() : 'Н/Д'}</p>
+              <p><strong>Конец:</strong> ${pass.end ? new Date(pass.end).toLocaleString() : 'Н/Д'}</p>
+            </div>
+          `;
+        });
+        
+        content.innerHTML = html;
+      } catch (error) {
+        console.error('Ошибка:', error);
+        content.innerHTML = `
+          <div class="error">
+            <p>Не удалось загрузить данные прогноза</p>
+            <button onclick="showForecast(${st_id})">Повторить</button>
+          </div>
+        `;
+      }
+    }
+
+    // Функция для отображения истории
+    async function showHistory(st_id) {
+      currentStationId = st_id;
+      const title = document.getElementById('panelTitle');
+      const content = document.getElementById('panelContent');
+      
+      title.textContent = 'История наблюдений';
+      content.innerHTML = '<div class="loading">Загрузка данных...</div>';
+      openPanel();
+      
+      try {
+        const data = await loadHistoryData(st_id);
+        
+        if (!data || data.length === 0) {
+          content.innerHTML = '<div class="no-data">Нет данных о прошлых наблюдениях</div>';
+          return;
+        }
+        
+        let html = '';
+        data.forEach(obs => {
+          const statusClass = obs.status === 'good' ? 'status-good' : 'status-bad';
+          const statusText = obs.status === 'good' ? 'Успешно' : 'Ошибка';
+          
+          html += `
+            <div class="history-item">
+              <h4>Наблюдение #${obs.obs_id || 'Н/Д'}</h4>
+              <p><strong>Статус:</strong> <span class="${statusClass}">${statusText}</span></p>
+              <p><strong>Начало:</strong> ${obs.start ? new Date(obs.start).toLocaleString() : 'Н/Д'}</p>
+              <p><strong>Конец:</strong> ${obs.end ? new Date(obs.end).toLocaleString() : 'Н/Д'}</p>
+              <div class="history-links">
+                ${obs.payload ? `<a href="${obs.payload}" target="_blank" rel="noopener noreferrer">Аудио</a>` : ''}
+                ${obs.waterfall ? `<a href="${obs.waterfall}" target="_blank" rel="noopener noreferrer">Waterfall</a>` : ''}
+              </div>
+            </div>
+          `;
+        });
+        
+        content.innerHTML = html;
+      } catch (error) {
+        console.error('Ошибка:', error);
+        content.innerHTML = `
+          <div class="error">
+            <p>Не удалось загрузить историю наблюдений</p>
+            <button onclick="showHistory(${st_id})">Повторить</button>
+          </div>
+        `;
+      }
+    }
+
+    async function getSuccessRateFromGraph(stationId) {
+	  const response = await fetch(`https://sonik.space/stations/${stationId}`);
+	  const html = await response.text();
+
+	  // Создаем временный элемент, чтобы можно было использовать querySelector
+	  const tempDiv = document.createElement('div');
+	  tempDiv.innerHTML = html;
+
+	  // Ищем все полоски с success-rate
+	  const greenBar = tempDiv.querySelector('.pb-green');
+	  const orangeBar = tempDiv.querySelector('.pb-orange');
+	  const redBar = tempDiv.querySelector('.pb-red');
+
+	  // Извлекаем данные о процентах
+	  const greenRate = greenBar ? parseFloat(greenBar.getAttribute('data-success-rate')) : 0;
+	  const orangeRate = orangeBar ? parseFloat(orangeBar.getAttribute('data-success-rate')) : 0;
+	  const redRate = redBar ? parseFloat(redBar.getAttribute('data-success-rate')) : 0;
+
+	  console.log(`Хорошие: ${greenRate}%`);
+	  console.log(`Неизвестные: ${orangeRate}%`);
+	  console.log(`Плохие: ${redRate}%`);
+
+	  // Возвращаем проценты для использования в интерфейсе
+	  return { goodRate: greenRate, unknownRate: orangeRate, badRate: redRate };
+	}
+
+	// отображения статистики
+	async function showStatistics(st_id) {
+	  currentStationId = st_id;
+	  document.getElementById('panelTitle').textContent = 'Статистика станции';
+
+	  // Получаем success-rate из графика
+	  const successRates = await getSuccessRateFromGraph(st_id);
+
+	  // Добавляем стили для графика
+	  const style = document.createElement('style');
+	  style.textContent = `
+		.stats-container {
+		  margin-top: 20px;
+		}
+		.stats-row {
+		  display: flex;
+		  align-items: center;
+		  margin-bottom: 10px;
+		}
+		.stats-label {
+		  width: 100px;
+		  font-weight: bold;
+		}
+		.stats-bar-container {
+		  flex: 1;
+		  height: 20px;
+		  background-color: #f0f0f0;
+		  border-radius: 10px;
+		  overflow: hidden;
+		}
+		.stats-bar {
+		  height: 100%;
+		  transition: width 0.5s ease;
+		}
+		.stats-value {
+		  width: 60px;
+		  text-align: right;
+		  margin-left: 10px;
+		}
+		.good-bar {
+		  background-color: #4CAF50;
+		}
+		.unknown-bar {
+		  background-color: #FFC107;
+		}
+		.bad-bar {
+		  background-color: #F44336;
+		}
+		.stats-summary {
+		  margin-top: 15px;
+		  padding: 10px;
+		  background-color: #f9f9f9;
+		  border-radius: 5px;
+		}
+	  `;
+	  document.head.appendChild(style);
+
+	  document.getElementById('panelContent').innerHTML = `
+		<div class="stats-container">
+		  <h4>Успешность наблюдений</h4>
+		  
+		  <div class="stats-row">
+			<div class="stats-label">Хорошие:</div>
+			<div class="stats-bar-container">
+			  <div class="stats-bar good-bar" style="width: ${successRates.goodRate}%"></div>
+			</div>
+			<div class="stats-value">${successRates.goodRate}%</div>
+		  </div>
+		  
+		  <div class="stats-row">
+			<div class="stats-label">Неизвестные:</div>
+			<div class="stats-bar-container">
+			  <div class="stats-bar unknown-bar" style="width: ${successRates.unknownRate}%"></div>
+			</div>
+			<div class="stats-value">${successRates.unknownRate}%</div>
+		  </div>
+		  
+		  <div class="stats-row">
+			<div class="stats-label">Плохие:</div>
+			<div class="stats-bar-container">
+			  <div class="stats-bar bad-bar" style="width: ${successRates.badRate}%"></div>
+			</div>
+			<div class="stats-value">${successRates.badRate}%</div>
+		  </div>
+		</div>
+	  `;
+	  
+	  openPanel();
+	}
+
+    
+    // Функции для работы со спутниками
+    async function showSatelliteInfo(noradId) {
+      currentStationId = null;
+      document.getElementById('panelTitle').textContent = 'Информация о спутнике';
+      document.getElementById('panelContent').innerHTML = `
+        <p>Информация о спутнике NORAD ID: ${noradId}</p>
+        <p>Функционал находится в разработке.</p>
+      `;
+      openPanel();
+    }
+    
+    async function showSatellitePasses(noradId) {
+      currentStationId = null;
+      const title = document.getElementById('panelTitle');
+      const content = document.getElementById('panelContent');
+      
+      title.textContent = 'Прогноз пролётов спутника';
+      content.innerHTML = '<div class="loading">Загрузка данных...</div>';
+      openPanel();
+      
+      try {
+        const data = await loadSatelliteForecastData(noradId);
+        if (!data || data.length === 0) {
+          content.innerHTML = '<div class="no-data">Нет данных о предстоящих пролётах</div>';
+          return;
+        }
+        
+        let html = '';
+        data.forEach(pass => {
+          html += `
+            <div class="pass-item">
+              <h4>${pass.st_name || 'Неизвестная станция'}</h4>
+              <p><strong>ID станции:</strong> ${pass.st_id || 'Н/Д'}</p>
+              <p><strong>Начало:</strong> ${pass.start ? new Date(pass.start).toLocaleString() : 'Н/Д'}</p>
+              <p><strong>Конец:</strong> ${pass.end ? new Date(pass.end).toLocaleString() : 'Н/Д'}</p>
+            </div>
+          `;
+        });
+        
+        content.innerHTML = html;
+      } catch (error) {
+        console.error('Ошибка:', error);
+        content.innerHTML = `
+          <div class="error">
+            <p>Не удалось загрузить данные прогноза</p>
+            <button onclick="showSatellitePasses('${noradId}')">Повторить</button>
+          </div>
+        `;
+      }
+    }
+    
+	async function showSatelliteHistory(noradId) {
+	  currentStationId = null;
+	  const title = document.getElementById('panelTitle');
+	  const content = document.getElementById('panelContent');
+	  
+	  title.textContent = 'История наблюдений спутника';
+	  content.innerHTML = '<div class="loading">Загрузка данных...</div>';
+	  openPanel();
+	  
+	  try {
+		const response = await fetch(`http://127.0.0.1:8000/history/?stl_id=${noradId}`);
+		
+		if (!response.ok) {
+		  throw new Error(`Ошибка сервера: ${response.status}`);
+		}
+		
+		const data = await response.json();
+		
+		if (!data || data.length === 0) {
+		  content.innerHTML = '<div class="no-data">Нет данных о прошлых наблюдениях</div>';
+		  return;
+		}
+		
+		let html = '';
+		data.forEach(obs => {
+		  const statusClass = obs.status === 'good' ? 'status-good' : 'status-bad';
+		  const statusText = obs.status === 'good' ? 'Успешно' : 'Ошибка';
+		  
+		  html += `
+			<div class="history-item">
+			  <h4>Наблюдение #${obs.obs_id || 'Н/Д'}</h4>
+			  <p><strong>Статус:</strong> <span class="${statusClass}">${statusText}</span></p>
+			  <p><strong>Начало:</strong> ${obs.start ? new Date(obs.start).toLocaleString() : 'Н/Д'}</p>
+			  <p><strong>Конец:</strong> ${obs.end ? new Date(obs.end).toLocaleString() : 'Н/Д'}</p>
+			  <div class="history-links">
+				${obs.payload ? `<a href="${obs.payload}" target="_blank" rel="noopener noreferrer">Аудио</a>` : ''}
+				${obs.waterfall ? `<a href="${obs.waterfall}" target="_blank" rel="noopener noreferrer">Waterfall</a>` : ''}
+			  </div>
+			</div>
+		  `;
+		});
+		
+		content.innerHTML = html;
+	  } catch (error) {
+		console.error('Ошибка:', error);
+		content.innerHTML = `
+		  <div class="error">
+			<p>Не удалось загрузить историю наблюдений</p>
+			<button onclick="showSatelliteHistory('${noradId}')">Повторить</button>
+		  </div>
+		`;
+	  }
+	}
+
+
+    // Загружаем станции при загрузке страницы
+    document.addEventListener('DOMContentLoaded', loadStations);
+    
+    // Делаем функции глобальными для использования в HTML
+    window.showForecast = showForecast;
+    window.showHistory = showHistory;
+    window.showStatistics = showStatistics;
+    window.showSatelliteInfo = showSatelliteInfo;
+    window.showSatellitePasses = showSatellitePasses;
+    window.showSatelliteHistory = showSatelliteHistory;
+    window.closePanel = closePanel;
+  </script>
+</body>
+
+</html>
